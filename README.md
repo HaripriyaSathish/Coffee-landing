@@ -83,30 +83,29 @@ If the PHP server is not running, the banner still works with built-in demo cont
 - **Process Animation** – title, text, background color and **duration in seconds** of each of the 6 steps
 - **Pre-order Sign-ups** – emails submitted from the banner, with CSV export
 
-## Deploy on Render (two Web Services + Neon PostgreSQL)
+## Deploy on Render — ONE web service for the site, admin and API
 
-Local development keeps using MySQL. On Render the backend uses Neon PostgreSQL because the
-`DATABASE_URL` environment variable is set — no code changes between the two.
+One Docker container (root `Dockerfile`) runs both parts. Next.js listens on Render's port and
+forwards `/admin` and `/api` to PHP, which runs privately inside the container:
+
+| URL | What |
+|---|---|
+| `https://<app>.onrender.com/` | the 3D banner |
+| `https://<app>.onrender.com/admin` | admin panel |
+| `https://<app>.onrender.com/api/banner.php` | API |
+
+Local development is unchanged (MySQL, PHP on :8000, Next.js on :3000 — `localhost:3000/admin` works too).
+On Render the backend uses Neon PostgreSQL because `DATABASE_URL` is set.
 
 ### 1. Copy / refresh the data in Neon (already done once)
-
 ```bash
 cd backend
 DATABASE_URL="postgresql://…your Neon string…" php -d extension=pdo_pgsql tools/migrate_mysql_to_pg.php
 ```
 Reads local MySQL only, creates the tables in Neon (`database.pg.sql`) and replaces their rows. Safe to re-run.
 
-### 2. Backend web service (PHP API + admin)
-Render → New → **Web Service** → this GitHub repo
-- Root Directory: `backend` · Language/Runtime: **Docker** (uses `backend/Dockerfile`)
-- Environment variables:
-  - `DATABASE_URL` = your Neon connection string
-  - `CORS_ORIGINS` = the frontend URL from step 3, e.g. `https://coldpress-web.onrender.com`
-
-### 3. Frontend web service (Next.js)
-Render → New → **Web Service** → same repo
-- Root Directory: `frontend` · Language/Runtime: **Node**
-- Build Command: `npm ci && npm run build` · Start Command: `npm start`
-- Environment variables (set before the first build — `NEXT_PUBLIC_…` is baked in at build time):
-  - `API_URL` = backend URL, e.g. `https://coldpress-api.onrender.com`
-  - `NEXT_PUBLIC_API_URL` = the same backend URL
+### 2. Create the web service
+Render → **New → Web Service** → connect this GitHub repo
+- Branch: `main` · Root Directory: *(leave empty)* · Language: **Docker** (uses the root `Dockerfile`)
+- Environment variable: `DATABASE_URL` = your Neon connection string
+- Create → wait for the build (5–10 min the first time) → open the URL; admin at `/admin`

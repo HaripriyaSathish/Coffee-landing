@@ -11,7 +11,8 @@ import { SplitTitle, SplitWords, Scramble, CountUp, BgWord } from './AnimatedTex
 const Scene = dynamic(() => import('./scene/Scene'), { ssr: false });
 
 const TOTAL = 6; // number of animation steps
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+// '' (empty) = same address as the site: the single Render service forwards /api to PHP
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const pad = (n) => String(n).padStart(2, '0');
 
 export default function Banner({ data, live }) {

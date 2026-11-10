@@ -241,7 +241,7 @@ function render_field(string $col, array $f, array $row): string
       <?php endforeach; ?>
     </nav>
     <div class="side-foot">
-      <a class="btn ghost small" href="http://localhost:3000" target="_blank" rel="noopener">View banner ↗</a>
+      <a class="btn ghost small" href="<?= e(getenv('FRONTEND_URL') ?: 'http://localhost:3000') ?>" target="_blank" rel="noopener">View banner ↗</a>
       <form method="post" action="logout.php"><?= csrf_field() ?><button class="btn ghost small">Log out (<?= e($_SESSION['admin_name']) ?>)</button></form>
     </div>
   </aside>

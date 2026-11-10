@@ -1,0 +1,7 @@
+.git
+backend/config.local.php
+frontend/node_modules
+frontend/.next
+frontend/.next-prod
+frontend/assets-src
+**/.env*.local
