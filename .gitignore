@@ -1,0 +1,10 @@
+# secrets — never commit
+backend/config.local.php
+.env
+.env*.local
+frontend/.env*.local
+
+# build output / dependencies
+frontend/node_modules
+frontend/.next
+frontend/.next-prod

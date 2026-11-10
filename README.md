@@ -82,3 +82,31 @@ If the PHP server is not running, the banner still works with built-in demo cont
 - **Stat Chips** – the small numbers under the form
 - **Process Animation** – title, text, background color and **duration in seconds** of each of the 6 steps
 - **Pre-order Sign-ups** – emails submitted from the banner, with CSV export
+
+## Deploy on Render (two Web Services + Neon PostgreSQL)
+
+Local development keeps using MySQL. On Render the backend uses Neon PostgreSQL because the
+`DATABASE_URL` environment variable is set — no code changes between the two.
+
+### 1. Copy / refresh the data in Neon (already done once)
+
+```bash
+cd backend
+DATABASE_URL="postgresql://…your Neon string…" php -d extension=pdo_pgsql tools/migrate_mysql_to_pg.php
+```
+Reads local MySQL only, creates the tables in Neon (`database.pg.sql`) and replaces their rows. Safe to re-run.
+
+### 2. Backend web service (PHP API + admin)
+Render → New → **Web Service** → this GitHub repo
+- Root Directory: `backend` · Language/Runtime: **Docker** (uses `backend/Dockerfile`)
+- Environment variables:
+  - `DATABASE_URL` = your Neon connection string
+  - `CORS_ORIGINS` = the frontend URL from step 3, e.g. `https://coldpress-web.onrender.com`
+
+### 3. Frontend web service (Next.js)
+Render → New → **Web Service** → same repo
+- Root Directory: `frontend` · Language/Runtime: **Node**
+- Build Command: `npm ci && npm run build` · Start Command: `npm start`
+- Environment variables (set before the first build — `NEXT_PUBLIC_…` is baked in at build time):
+  - `API_URL` = backend URL, e.g. `https://coldpress-api.onrender.com`
+  - `NEXT_PUBLIC_API_URL` = the same backend URL

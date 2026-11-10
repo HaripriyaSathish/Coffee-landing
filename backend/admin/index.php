@@ -86,8 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         if ($section === 'settings' && $action === 'save_settings') {
-            $stmt = $pdo->prepare('INSERT INTO settings (setting_key, setting_value) VALUES (?, ?)
-                                   ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)');
+            $stmt = $pdo->prepare(sql_upsert_setting());
             foreach ($settingLabels as $key => $_) {
                 $stmt->execute([$key, trim((string) ($_POST[$key] ?? ''))]);
             }
@@ -119,25 +118,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $vals[] = $v;
             }
             if ($id > 0) {
-                $set = implode(', ', array_map(fn ($c) => "`$c` = ?", $cols));
-                $pdo->prepare("UPDATE `{$def['table']}` SET $set WHERE id = ?")->execute([...$vals, $id]);
+                $set = implode(', ', array_map(fn ($c) => qi($c) . ' = ?', $cols));
+                $pdo->prepare('UPDATE ' . qi($def['table']) . " SET $set WHERE id = ?")->execute([...$vals, $id]);
             } else {
                 $ph = implode(', ', array_fill(0, count($cols), '?'));
-                $names = implode(', ', array_map(fn ($c) => "`$c`", $cols));
-                $pdo->prepare("INSERT INTO `{$def['table']}` ($names) VALUES ($ph)")->execute($vals);
+                $names = implode(', ', array_map(fn ($c) => qi($c), $cols));
+                $pdo->prepare('INSERT INTO ' . qi($def['table']) . " ($names) VALUES ($ph)")->execute($vals);
             }
             flash('Saved.');
             redirect($self);
         }
 
         if (isset($def['table']) && !empty($def['crud']) && $action === 'delete') {
-            $pdo->prepare("DELETE FROM `{$def['table']}` WHERE id = ?")->execute([(int) $_POST['id']]);
+            $pdo->prepare('DELETE FROM ' . qi($def['table']) . ' WHERE id = ?')->execute([(int) $_POST['id']]);
             flash('Deleted.');
             redirect($self);
         }
 
         if (isset($def['table']) && !empty($def['crud']) && $action === 'toggle') {
-            $pdo->prepare("UPDATE `{$def['table']}` SET is_active = 1 - is_active WHERE id = ?")->execute([(int) $_POST['id']]);
+            $pdo->prepare('UPDATE ' . qi($def['table']) . ' SET is_active = 1 - is_active WHERE id = ?')->execute([(int) $_POST['id']]);
             redirect($self);
         }
 
@@ -191,7 +190,7 @@ $flash = flash();
 $editing = null;
 if (isset($def['table'])) {
     if (isset($_GET['edit'])) {
-        $stmt = $pdo->prepare("SELECT * FROM `{$def['table']}` WHERE id = ?");
+        $stmt = $pdo->prepare('SELECT * FROM ' . qi($def['table']) . ' WHERE id = ?');
         $stmt->execute([(int) $_GET['edit']]);
         $editing = $stmt->fetch() ?: null;
     } elseif (isset($_GET['new']) && !empty($def['crud'])) {
@@ -314,7 +313,7 @@ function render_field(string $col, array $f, array $row): string
       </form>
 
     <?php else:
-        $rows = $pdo->query("SELECT * FROM `{$def['table']}` ORDER BY sort_order, id")->fetchAll(); ?>
+        $rows = $pdo->query('SELECT * FROM ' . qi($def['table']) . ' ORDER BY sort_order, id')->fetchAll(); ?>
       <div class="card">
         <table>
           <thead><tr>

@@ -29,7 +29,7 @@ try {
             $flavorId = null;
         }
     }
-    $stmt = $pdo->prepare('INSERT IGNORE INTO preorders (email, flavor_id, ip_address) VALUES (?, ?, ?)');
+    $stmt = $pdo->prepare(sql_insert_ignore('preorders', ['email', 'flavor_id', 'ip_address']));
     $stmt->execute([strtolower($email), $flavorId, $_SERVER['REMOTE_ADDR'] ?? null]);
 
     $msg = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'form_success_text'")->fetchColumn();
