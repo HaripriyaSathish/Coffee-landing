@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import dynamic from 'next/dynamic';
 import SafeCanvas from './SafeCanvas';
@@ -35,6 +35,20 @@ export default function Navbar({ settings, nav }) {
     return () => ctx.revert();
   }, []);
 
+  // mobile menu: close with Escape, and when the screen grows back to desktop width
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+    const mq = window.matchMedia('(min-width: 901px)');
+    const onMq = () => mq.matches && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    mq.addEventListener('change', onMq);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      mq.removeEventListener('change', onMq);
+    };
+  }, [open]);
+
   return (
     <header className={`nav ${open ? 'is-open' : ''}`} ref={ref}>
       <a href="#" className="nav-logo" aria-label={settings.brand_name}>
@@ -62,10 +76,13 @@ export default function Navbar({ settings, nav }) {
           <i>2</i>
         </button>
         <a href={settings.nav_cta_url} className="btn-pill magnetic"><Roll>{settings.nav_cta_text}</Roll></a>
-        <button className="burger" aria-label="Menu" aria-expanded={open} type="button" onClick={() => setOpen((o) => !o)}>
+        <button className="burger" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} type="button" onClick={() => setOpen((o) => !o)}>
           <span /><span />
         </button>
       </div>
+
+      {/* tap outside the open menu to close it (mobile only, see globals.css) */}
+      <div className="nav-backdrop" aria-hidden="true" onClick={() => setOpen(false)} />
     </header>
   );
 }

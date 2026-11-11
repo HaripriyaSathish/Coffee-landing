@@ -37,6 +37,15 @@ export default class SafeCanvas extends Component {
     clearTimeout(this.timer);
   }
 
+  componentDidMount() {
+    // no WebGL at all (blocked GPU, some in-app browsers): show the fallback straight away instead of
+    // letting the renderer throw an uncaught error and leave an empty box
+    if (!hasWebGL()) {
+      this.setState({ gaveUp: true });
+      this.props.onError?.();
+    }
+  }
+
   render() {
     if (this.state.gaveUp) return this.props.fallback ?? null;
     if (this.state.failed) return null; // brief pause before the next attempt
@@ -46,12 +55,18 @@ export default class SafeCanvas extends Component {
 }
 
 /** True when the browser can create a WebGL context at all. */
+let webglSupport; // checked once: each probe creates a (throwaway) GPU context
 export function hasWebGL() {
   if (typeof window === 'undefined') return true;
-  try {
-    const c = document.createElement('canvas');
-    return !!(c.getContext('webgl2') || c.getContext('webgl'));
-  } catch {
-    return false;
+  if (webglSupport === undefined) {
+    try {
+      const c = document.createElement('canvas');
+      const gl = c.getContext('webgl2') || c.getContext('webgl');
+      webglSupport = !!gl;
+      gl?.getExtension('WEBGL_lose_context')?.loseContext(); // free the probe context right away
+    } catch {
+      webglSupport = false;
+    }
   }
+  return webglSupport;
 }
