@@ -11,6 +11,11 @@ import { SplitTitle, SplitWords, Scramble, CountUp, BgWord } from './AnimatedTex
 const Scene = dynamic(() => import('./scene/Scene'), { ssr: false });
 
 const TOTAL = 6; // number of animation steps
+// every step plays this many times longer than its duration_sec (admin / defaults), so the process
+// has time to read; raise for slower, lower for faster
+const STEP_SLOWDOWN = 2;
+// the step text (headline, description, label) animates in this much slower too, to match
+const TEXT_SLOWDOWN = 2;
 // '' (empty) = same address as the site: the single Render service forwards /api to PHP
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
 const pad = (n) => String(n).padStart(2, '0');
@@ -65,7 +70,7 @@ export default function Banner({ data, live }) {
     onUpdate();
     const tl = gsap.timeline({ onUpdate, onComplete: () => setDone(true) });
     for (let i = from; i < TOTAL; i++) {
-      tl.to(progRef.current, { v: i + 1, duration: steps[i].duration_sec, ease: 'none' });
+      tl.to(progRef.current, { v: i + 1, duration: steps[i].duration_sec * STEP_SLOWDOWN, ease: 'none' });
     }
     tlRef.current = tl;
   }, [onUpdate, steps]);
@@ -111,10 +116,11 @@ export default function Banner({ data, live }) {
 
   useLayoutEffect(() => {
     if (!contentRef.current) return;
+    const slow = done ? 1 : TEXT_SLOWDOWN;
     const ctx = gsap.context(() => {
       gsap.fromTo('.reveal',
         { y: 34, opacity: 0, filter: 'blur(8px)' },
-        { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.85, stagger: 0.07, ease: 'power3.out' });
+        { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.85 * slow, stagger: 0.07 * slow, ease: 'power3.out' });
     }, contentRef);
     return () => ctx.revert();
   }, [stepIdx, done, flavorIdx]);
@@ -210,7 +216,7 @@ export default function Banner({ data, live }) {
         <div className="bg-glow g2" />
         <div className="bg-glow g3" />
         <div className="bg-grid" />
-        <BgWord word={bigWord} />
+        <BgWord word={bigWord} slow={done ? 1 : TEXT_SLOWDOWN} />
         <div className="bg-grain" />
       </div>
 
@@ -234,10 +240,10 @@ export default function Banner({ data, live }) {
         {!done ? (
           <div className="copy" key={`step-${stepIdx}`}>
             <span className="eyebrow reveal">
-              <i className="pulse" /> <Scramble text={`Step ${pad(stepIdx + 1)} / ${pad(TOTAL)} · ${step.step_label}`} />
+              <i className="pulse" /> <Scramble text={`Step ${pad(stepIdx + 1)} / ${pad(TOTAL)} · ${step.step_label}`} slow={TEXT_SLOWDOWN} />
             </span>
-            <SplitTitle text={headline} />
-            <SplitWords text={step.description} />
+            <SplitTitle text={headline} slow={TEXT_SLOWDOWN} />
+            <SplitWords text={step.description} slow={TEXT_SLOWDOWN} />
           </div>
         ) : (
           <div className="copy" key={`flavor-${flavor.id}`}>
