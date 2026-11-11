@@ -130,7 +130,7 @@ function Studio({ bg }) {
  * material compiles the first time it appears and the animation stalls.
  */
 function Warmup({ onReady }) {
-  const { gl, scene, camera } = useThree();
+  const { gl, scene, camera, invalidate } = useThree();
   useEffect(() => {
     let cancelled = false;
     // The EffectComposer draws the scene into an offscreen buffer, and three.js builds a different
@@ -180,15 +180,22 @@ function Warmup({ onReady }) {
       } catch { /* ignore */ }
       gl.setRenderTarget(prev);
       restore();
-      // let a couple of frames render so post-processing passes are compiled too
-      requestAnimationFrame(() => requestAnimationFrame(() => { if (!cancelled) onReady?.(); }));
+      // render a couple of real frames (the render loop is paused behind the intro, so ask for them)
+      // so the post-processing passes are compiled too
+      invalidate();
+      requestAnimationFrame(() => {
+        invalidate();
+        requestAnimationFrame(() => requestAnimationFrame(() => { if (!cancelled) onReady?.(); }));
+      });
     }, 80);
     return () => { cancelled = true; clearTimeout(id); rt.dispose(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
-export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414', onReady }) {
+// `active`: false while hidden behind the intro curtains: frames are only drawn on request (warm-up),
+// so the scene does not compete with the intro for the GPU
+export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414', onReady, active = true }) {
   const mobile = typeof window !== 'undefined' && window.innerWidth < 900;
   // quality adapts to the computer: if frames drop, render a bit lighter instead of stuttering
   const [quality, setQuality] = useState(mobile ? 0.6 : 1);
@@ -198,6 +205,7 @@ export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414',
   const msaa = mobile ? 0 : 2;
   return (
     <Canvas
+      frameloop={active ? 'always' : 'demand'}
       dpr={Math.max(0.75, dpr)}
       shadows="soft"
       camera={{ position: [0, 0.4, 8], fov: 32 }}
@@ -230,15 +238,16 @@ export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414',
       </Environment>
 
       {/* quality only ever steps down: every change resizes all the render buffers (a visible hitch),
-          so going back up and down repeatedly made the animation stutter */}
-      <PerformanceMonitor
+          so going back up and down repeatedly made the animation stutter.
+          Only measured while live: paused behind the intro it would read as a very low frame rate */}
+      {active && <PerformanceMonitor
         ms={500}
         iterations={6}
         bounds={(refresh) => (refresh > 90 ? [50, 80] : [40, 56])}
         onDecline={() => setQuality((q) => Math.max(0.4, q - 0.3))}
         flipflops={2}
         onFallback={() => setQuality(0.4)}
-      />
+      />}
       <Rig progRef={progRef}>
         <Beans progRef={progRef} />
         <Grinder progRef={progRef} accent={flavor.accent_color} />

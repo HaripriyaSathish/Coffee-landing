@@ -33,9 +33,10 @@ function Bean({ speed = 0.9 }) {
 }
 
 /** A single real-looking roasted coffee bean for the brand intro. */
-export default function IntroBean({ small = false }) {
+// `paused`: stops drawing (the intro bean, once the intro has faded out) without tearing down the canvas
+export default function IntroBean({ small = false, paused = false }) {
   return (
-    <Canvas dpr={small ? [1, 2] : [1, 2]} camera={{ position: [0, 0, small ? 2.3 : 3.2], fov: 35 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}>
+    <Canvas frameloop={paused ? 'never' : 'always'} dpr={[1, 2]} camera={{ position: [0, 0, small ? 2.3 : 3.2], fov: 35 }} gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}>
       <ambientLight intensity={0.2} />
       <directionalLight position={[2, 3, 3]} intensity={2.5} color="#ffe2c2" />
       <spotLight position={[-3, 2, -2]} angle={0.6} penumbra={1} intensity={40} color="#d39a5c" />

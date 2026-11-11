@@ -34,7 +34,13 @@ export default function Banner({ data, live }) {
 
   const [stepIdx, setStepIdx] = useState(0);
   const [done, setDone] = useState(false);
-  const [intro, setIntro] = useState(false);
+  // the intro is part of the very first paint (server-rendered), so the page never flashes before the
+  // curtains appear; it is switched off straight away for ?at= previews and reduced motion
+  const [intro, setIntro] = useState(true);
+  const [introGone, setIntroGone] = useState(false);
+  // the 3D scene only runs its render loop once the curtains open: behind them it would just compete
+  // with the intro for the GPU (it still renders the frames its warm-up needs)
+  const [live3d, setLive3d] = useState(false);
   const [sceneReady, setSceneReady] = useState(false);
   const onSceneReady = useCallback(() => setSceneReady(true), []);
   // never wait forever: continue after 12s even on a very slow GPU
@@ -90,15 +96,18 @@ export default function Banner({ data, live }) {
       progRef.current.v = Math.min(TOTAL, Math.max(0, at));
       onUpdate();
       if (at >= TOTAL) setDone(true);
+      setIntro(false);
+      setLive3d(true);
       return undefined;
     }
     if (reduce) {
       progRef.current.v = TOTAL;
       onUpdate();
       setDone(true);
-    } else {
-      setIntro(true); // brand intro first; the process starts when it finishes
+      setIntro(false);
+      setLive3d(true);
     }
+    // otherwise the brand intro plays first; the process starts when it finishes
     return () => tlRef.current?.kill();
   }, [onUpdate]);
 
@@ -107,12 +116,13 @@ export default function Banner({ data, live }) {
     // the opening is a CSS animation (.is-revealing in globals.css): it runs on the compositor
     // thread, so it stays smooth while the 3D scene renders its first frames
     rootRef.current?.classList.add('is-revealing');
+    setLive3d(true);
     // start the process a beat later, once the opening is already moving
     setTimeout(() => play(0), 350);
   }, [play]);
 
-  // curtains fully open: remove the intro
-  const finishIntro = useCallback(() => setIntro(false), []);
+  // curtains fully open: hide the intro (kept mounted, see BrandIntro)
+  const finishIntro = useCallback(() => setIntroGone(true), []);
 
   useLayoutEffect(() => {
     if (!contentRef.current) return;
@@ -231,7 +241,7 @@ export default function Banner({ data, live }) {
         onPointerLeave={onPointerUp}
       >
         <SafeCanvas onError={onSceneReady}>
-          <Scene progRef={progRef} flavor={flavor} brand={settings.brand_name} spinRef={spinRef} bg={bg} onReady={onSceneReady} />
+          <Scene progRef={progRef} flavor={flavor} brand={settings.brand_name} spinRef={spinRef} bg={bg} onReady={onSceneReady} active={live3d} />
         </SafeCanvas>
       </div>
 
@@ -324,6 +334,7 @@ export default function Banner({ data, live }) {
           onDone={endIntro}
           onExit={finishIntro}
           ready={sceneReady}
+          gone={introGone}
         />
       )}
     </section>
