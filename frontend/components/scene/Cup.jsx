@@ -207,6 +207,7 @@ export default function Cup({ progRef, flavor, spinRef }) {
   const milk = useMemo(() => new THREE.Color('#ffffff'), []);
   const latte = useMemo(() => new THREE.Color(), []);
   const tmp = useMemo(() => new THREE.Vector3(), []);
+  const heart = useMemo(() => ({ q: new THREE.Quaternion(), cam: new THREE.Vector3(), down: new THREE.Vector3() }), []);
 
   const setLayer = (mesh, a, b) => {
     const h = Math.max(0.0001, b - a);
@@ -225,7 +226,8 @@ export default function Cup({ progRef, flavor, spinRef }) {
     g.visible = cin > 0.001;
     if (!g.visible) return;
     // once the bottle leaves, the cup moves to centre stage and grows into the hero
-    const hero = easeInOut(seg(v, 4.9, 5.1));
+    // starts once the bottle is already halfway out (Bottle.jsx `exit`), so they never overlap
+    const hero = easeInOut(seg(v, 5.0, 5.2));
     g.position.set(lerp(lerp(3.4, CUP_X, cin), 0, hero), TABLE_Y, 0);
     g.scale.setScalar(lerp(1, 1.4, hero));
     // after all the steps the cup turns slowly like a product on a turntable:
@@ -285,7 +287,17 @@ export default function Cup({ progRef, flavor, spinRef }) {
     // the foam/crema takes on the flavour colour too (it is what you see from above at the end)
     fo.material.color.copy(WHITE).lerp(coffee, FOAM_TINT);
     fo.material.emissive.copy(WHITE).lerp(latte, FOAM_TINT);
-    fo.rotation.z = 0.4; // turn the heart towards the viewer
+    // the heart always faces the viewer straight on (tip towards the bottom of the screen), even while
+    // the cup turns: rotate it, within the cup, against the cup's own spin and the camera angle
+    g.updateWorldMatrix(true, false);
+    g.getWorldQuaternion(heart.q).invert();
+    heart.cam.copy(state.camera.position);
+    g.worldToLocal(heart.cam); // towards the camera, in the cup's own space
+    heart.down.copy(state.camera.up).applyQuaternion(state.camera.quaternion).negate().applyQuaternion(heart.q); // screen-down, in the cup's space
+    const lc = Math.hypot(heart.cam.x, heart.cam.z) || 1;
+    const ld = Math.hypot(heart.down.x, heart.down.z) || 1;
+    // side views use the camera direction, overhead views the screen-down direction; summed, it is stable at every angle
+    fo.rotation.z = Math.atan2(heart.cam.x / lc + heart.down.x / ld, heart.cam.z / lc + heart.down.z / ld);
 
     // hot drink: steam rises from the cup as the hot milk goes in, and keeps rising afterwards
     steamCup.current.y = liquidTop + 0.05;

@@ -133,26 +133,57 @@ function Warmup({ onReady }) {
   const { gl, scene, camera } = useThree();
   useEffect(() => {
     let cancelled = false;
-    const id = setTimeout(async () => {
+    // The EffectComposer draws the scene into an offscreen buffer, and three.js builds a different
+    // shader for that than for the screen (no tone mapping, linear colour). Compiling against the
+    // screen would warm up the wrong shaders, so compile and draw into an offscreen target instead.
+    const rt = new THREE.WebGLRenderTarget(64, 64, { type: THREE.HalfFloatType });
+    // shows every object and turns off frustum culling, so nothing is skipped by the main camera or
+    // the shadow camera (a skipped object would still compile later, mid-animation)
+    const showAll = () => {
       const hidden = [];
+      const culled = [];
       scene.traverse((o) => {
         if (!o.visible) {
           hidden.push(o);
           o.visible = true;
         }
+        if (o.frustumCulled) {
+          culled.push(o);
+          o.frustumCulled = false;
+        }
       });
+      return () => {
+        hidden.forEach((o) => { o.visible = false; });
+        culled.forEach((o) => { o.frustumCulled = true; });
+      };
+    };
+    const id = setTimeout(async () => {
+      const prev = gl.getRenderTarget();
+      let restore = showAll();
       let job;
       try {
+        gl.setRenderTarget(rt);
         job = gl.compileAsync ? gl.compileAsync(scene, camera) : (gl.compile(scene, camera), Promise.resolve());
       } catch {
         job = Promise.resolve();
       }
-      hidden.forEach((o) => { o.visible = false; });
+      gl.setRenderTarget(prev);
+      restore();
       try { await job; } catch { /* ignore */ }
+      if (cancelled) return;
+      // one hidden frame with everything visible: uploads every texture and geometry, and builds the
+      // shadow-map shaders, so nothing has to be prepared the first time it appears on screen
+      restore = showAll();
+      try {
+        gl.setRenderTarget(rt);
+        gl.render(scene, camera);
+      } catch { /* ignore */ }
+      gl.setRenderTarget(prev);
+      restore();
       // let a couple of frames render so post-processing passes are compiled too
       requestAnimationFrame(() => requestAnimationFrame(() => { if (!cancelled) onReady?.(); }));
     }, 80);
-    return () => { cancelled = true; clearTimeout(id); };
+    return () => { cancelled = true; clearTimeout(id); rt.dispose(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
@@ -164,7 +195,7 @@ export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414',
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio : 1, mobile ? 1.25 : 1.5) * (0.65 + 0.35 * quality);
   // fixed: changing multisampling rebuilds the whole effect pipeline, which can make the browser drop the
   // WebGL context ("Cannot read properties of null (reading 'alpha')"). Only the resolution adapts.
-  const msaa = mobile ? 0 : 4;
+  const msaa = mobile ? 0 : 2;
   return (
     <Canvas
       dpr={Math.max(0.75, dpr)}
@@ -180,7 +211,7 @@ export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414',
     >
       <ambientLight intensity={0.25} />
       {/* key light, warm */}
-      <directionalLight position={[3, 6, 5]} intensity={3} color="#ffe2c2" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0003} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} />
+      <directionalLight position={[3, 6, 5]} intensity={3} color="#ffe2c2" castShadow shadow-mapSize={[1024, 1024]} shadow-bias={-0.0003} shadow-camera-left={-5} shadow-camera-right={5} shadow-camera-top={5} shadow-camera-bottom={-5} />
       {/* rim light from behind, picks out glass edges */}
       <spotLight position={[-4, 4, -5]} angle={0.5} penumbra={1} intensity={60} color={flavor.accent_color} />
       <spotLight position={[5, 3, -4]} angle={0.5} penumbra={1} intensity={40} color="#9fd4ff" />
@@ -198,13 +229,15 @@ export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414',
         <Lightformer form="rect" intensity={4} position={[0, 0.5, -4]} scale={[1.2, 7, 1]} />
       </Environment>
 
-      <Warmup onReady={onReady} />
+      {/* quality only ever steps down: every change resizes all the render buffers (a visible hitch),
+          so going back up and down repeatedly made the animation stutter */}
       <PerformanceMonitor
+        ms={500}
+        iterations={6}
         bounds={(refresh) => (refresh > 90 ? [50, 80] : [40, 56])}
-        onDecline={() => setQuality((q) => Math.max(0.3, q - 0.25))}
-        onIncline={() => setQuality((q) => Math.min(1, q + 0.15))}
-        flipflops={4}
-        onFallback={() => setQuality(0.3)}
+        onDecline={() => setQuality((q) => Math.max(0.4, q - 0.3))}
+        flipflops={2}
+        onFallback={() => setQuality(0.4)}
       />
       <Rig progRef={progRef}>
         <Beans progRef={progRef} />
@@ -215,9 +248,11 @@ export default function Scene({ progRef, flavor, brand, spinRef, bg = '#3a2414',
         <WaterCarafe progRef={progRef} />
         <Suspense fallback={null}>
           <PhotoHands progRef={progRef} />
+          {/* inside the same Suspense: warms up once the hand photos have loaded, so they are included */}
+          <Warmup onReady={onReady} />
         </Suspense>
         <Sparkles count={40} scale={[6, 5, 3]} size={1.6} speed={0.3} opacity={0.35} color={flavor.accent_color} />
-        <ContactShadows position={[0, TABLE_Y + 0.002, 0]} opacity={0.65} scale={7} blur={2.2} far={4} resolution={1024} color="#000000" />
+        <ContactShadows position={[0, TABLE_Y + 0.002, 0]} opacity={0.65} scale={7} blur={2.2} far={4} resolution={512} color="#000000" />
         <Studio bg={bg} />
       </Rig>
 

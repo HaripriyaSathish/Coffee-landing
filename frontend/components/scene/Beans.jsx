@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { beanBumpTexture } from './materials';
-import { seg, easeOut, easeIn, lerp, rng, GRINDER_Y, HOPPER_BOTTOM, hopperRadius, GRIND_START, GRIND_END } from './anim';
+import { seg, easeIn, lerp, rng, GRINDER_Y, HOPPER_BOTTOM, hopperRadius, GRIND_START, GRIND_END } from './anim';
 
 /** Procedural roasted coffee bean: squashed ellipsoid with an S-shaped centre crease. */
 export function makeBeanGeometry() {
@@ -57,7 +57,7 @@ export default function Beans({ progRef }) {
     const r = rng(7);
     return Array.from({ length: COUNT }, () => ({
       a: r() * Math.PI * 2,
-      rad: 0.75 + r() * 1.0,
+      rad: 0.75 + r() * 1.0, // unused (kept so the random sequence, and the bean pile, stay the same)
       yOff: (r() - 0.5) * 0.9,
       d: r(),
       sx: (r() - 0.5) * 5,
@@ -67,7 +67,7 @@ export default function Beans({ progRef }) {
       rx: r() * Math.PI * 2,
       ry: r() * Math.PI * 2,
       spin: 0.4 + r() * 1.2,
-      fy: (r() - 0.5) * 2.8,
+      fy: (r() - 0.5) * 2.8, // unused, see `rad`
       hl: r(), // height in the hopper pile (0 = bottom)
       rr: Math.sqrt(r()), // radial position in the hopper
     }));
@@ -99,21 +99,11 @@ export default function Beans({ progRef }) {
       const tz = Math.sin(ang) * r2;
       const ty = GRINDER_Y + yl + bounce;
 
-      let x = lerp(s.sx * 0.5, tx, fall);
-      let y = lerp(s.sy + 2, ty, fall);
-      let z = lerp(s.sz * 0.3, tz, fall);
-      let scale = s.size * 0.82 * (1 - g) * (v > s.d * 0.5 ? 1 : 0);
-
-      // phase 3: beans come back as decoration orbiting the finished bottle
-      const h = easeOut(seg(v, 3.25 + s.d * 0.45, 3.75 + s.d * 0.45));
-      if (h > 0) {
-        const fa = s.a + t * 0.22;
-        const fr = (2.05 + s.rad * 0.5) * (0.35 + 0.65 * h);
-        x = Math.cos(fa) * fr;
-        z = Math.sin(fa) * fr * 0.55;
-        y = s.fy + Math.sin(t * 0.9 + s.a) * 0.12;
-        scale = s.size * h * 0.95;
-      }
+      const x = lerp(s.sx * 0.5, tx, fall);
+      const y = lerp(s.sy + 2, ty, fall);
+      const z = lerp(s.sz * 0.3, tz, fall);
+      // once ground they are gone for good (no beans orbiting the bottle afterwards)
+      const scale = s.size * 0.82 * (1 - g) * (v > s.d * 0.5 ? 1 : 0);
 
       dummy.position.set(x, y, z);
       dummy.rotation.set(s.rx + t * s.spin, s.ry + t * s.spin * 0.7, t * 0.3);

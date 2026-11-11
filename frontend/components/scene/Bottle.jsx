@@ -187,14 +187,16 @@ export default function Bottle({ progRef, flavor, brand, spinRef }) {
     const appear = easeBack(seg(v, 0.75, 1.05)); // waits under the grinder spout
     const toCenter = easeInOut(seg(v, 3.0, 3.5));
     const slide = easeInOut(seg(v, 4.15, 4.42)); // move up-left above the glass
-    const tilt = easeInOut(seg(v, 4.38, 4.52)) * (1 - easeInOut(seg(v, 4.85, 5.0)));
-    const exit = easeIn(seg(v, 4.9, 5.2)); // bottle's job is done: it leaves, the cup takes the stage
+    const tilt = easeInOut(seg(v, 4.38, 4.52)) * (1 - easeInOut(seg(v, 4.85, 4.95)));
+    // bottle's job is done: it leaves (up and away to the left) BEFORE the cup moves to centre stage
+    // (Cup.jsx `hero`), so the two never pass through each other
+    const exit = easeInOut(seg(v, 4.9, 5.08));
     g.visible = appear > 0.001 && exit < 1;
 
     const yCenter = lerp(BOTTLE_Y_BREW - 0.6 * (1 - appear), BOTTLE_Y_FINAL, toCenter);
     const bob = Math.sin(t * 1.3) * 0.05 * toCenter * (1 - slide);
     g.position.x = lerp(lerp(0, -0.46, slide), -4.2, exit);
-    g.position.y = lerp(lerp(yCenter, 0.55, slide), 1.2, exit) + bob;
+    g.position.y = lerp(lerp(yCenter, 0.55, slide), 2.2, exit) + bob;
     g.scale.setScalar(Math.max(0.0001, lerp(0.6, 1, appear)));
 
     // spin: one turn while sealing + flavour changes + user drag; locked front-facing while pouring
@@ -217,8 +219,9 @@ export default function Bottle({ progRef, flavor, brand, spinRef }) {
     // clear water first (you can see the grounds swirl), clouding into opaque decoction
     const lm = liquid.current.material;
     lm.opacity = lerp(0.1, 1, easeInOut(seg(v, 2.3, 3.0)));
+    // stays `transparent` the whole time: switching it would build a new shader mid-animation (a freeze).
+    // Writing depth once it is dark decoction is enough to make it render as solid.
     lm.depthWrite = lm.opacity > 0.98;
-    lm.transparent = lm.opacity < 0.99; // solid once it is dark decoction
     surface.current.material.opacity = lm.opacity;
     surface.current.material.color.copy(col).multiplyScalar(1.12);
 

@@ -119,8 +119,10 @@ export default function Banner({ data, live }) {
     const slow = done ? 1 : TEXT_SLOWDOWN;
     const ctx = gsap.context(() => {
       gsap.fromTo('.reveal',
-        { y: 34, opacity: 0, filter: 'blur(8px)' },
-        { y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.85 * slow, stagger: 0.07 * slow, ease: 'power3.out' });
+        // position + opacity only: these run on the GPU compositor; an animated blur filter repainted
+        // every text block on every frame and competed with the 3D scene
+        { y: 34, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.85 * slow, stagger: 0.07 * slow, ease: 'power3.out' });
     }, contentRef);
     return () => ctx.revert();
   }, [stepIdx, done, flavorIdx]);
