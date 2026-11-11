@@ -23,6 +23,11 @@ const rAt = (h) => lerp(0.44, 0.49, Math.min(1, Math.max(0, (h - 0.16) / 1.1))) 
 const JUG = [[0, 0], [0.24, 0], [0.27, 0.04], [0.29, 0.2], [0.27, 0.48], [0.24, 0.6], [0.26, 0.64]];
 const SPOUT = new THREE.Vector3(-0.3, 0.62, 0);
 const LATTE_TINT = new THREE.Color('#c9a27c'); // cappuccino brown
+// how much of the cappuccino colour is milk (LATTE_TINT) vs the flavour's own coffee colour.
+// Kept under ~0.5 so switching flavours (Vanilla, Caramel…) visibly changes the drink.
+const MILK_SHARE = 0.45;
+const FOAM_TINT = 0.22; // how much the latte-art foam picks up the flavour colour
+const WHITE = new THREE.Color('#ffffff');
 const JUG_TILT = 1.72;
 
 /** Realistic cappuccino surface seen from above: mottled crema, microfoam rim and one big latte-art heart. */
@@ -257,7 +262,7 @@ export default function Cup({ progRef, flavor, spinRef }) {
     const mix = easeInOut(seg(v, 5.72, 5.98));
     const coffeeTop = BASE + cf;
     const milkTop = coffeeTop + mf * MILK_IN_CUP;
-    latte.copy(coffee).lerp(LATTE_TINT, 0.8); // milk + cold brew = light cappuccino brown
+    latte.copy(coffee).lerp(LATTE_TINT, MILK_SHARE); // milk + this flavour's cold brew
 
     // the milky cloud sinks from the top to the bottom of the glass as it mixes
     const cloudBottom = lerp(coffeeTop - 0.08 * mf, BASE, mix);
@@ -277,6 +282,9 @@ export default function Cup({ progRef, flavor, spinRef }) {
     fo.position.y = liquidTop + 0.004;
     fo.scale.setScalar(rAt(liquidTop));
     fo.material.opacity = Math.min(1, mix * 1.3);
+    // the foam/crema takes on the flavour colour too (it is what you see from above at the end)
+    fo.material.color.copy(WHITE).lerp(coffee, FOAM_TINT);
+    fo.material.emissive.copy(WHITE).lerp(latte, FOAM_TINT);
     fo.rotation.z = 0.4; // turn the heart towards the viewer
 
     // hot drink: steam rises from the cup as the hot milk goes in, and keeps rising afterwards
