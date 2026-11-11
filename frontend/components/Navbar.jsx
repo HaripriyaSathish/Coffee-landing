@@ -68,13 +68,6 @@ export default function Navbar({ settings, nav }) {
       </nav>
 
       <div className="nav-right">
-        <button className="icon-btn magnetic" aria-label="Search" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
-        </button>
-        <button className="icon-btn cart magnetic" aria-label="Cart" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 7h12l-1 13H7L6 7Z" /><path d="M9 7a3 3 0 0 1 6 0" /></svg>
-          <i>2</i>
-        </button>
         <a href={settings.nav_cta_url} className="btn-pill magnetic"><Roll>{settings.nav_cta_text}</Roll></a>
         <button className="burger" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} type="button" onClick={() => setOpen((o) => !o)}>
           <span /><span />

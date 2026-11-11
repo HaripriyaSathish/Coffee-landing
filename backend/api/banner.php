@@ -12,5 +12,5 @@ try {
     json_out(['ok' => true, 'data' => banner_payload()]);
 } catch (Throwable $e) {
     error_log('[banner] ' . $e->getMessage());
-    json_out(['ok' => false, 'error' => 'Database unavailable'], 503);
+    json_out(['ok' => false, 'error' => 'Database unavailable', 'reason' => db_failure_reason($e)], 503);
 }

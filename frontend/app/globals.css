@@ -88,15 +88,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 .nav-links a:hover { color: var(--text); }
 .nav-links a.active { background: var(--text); color: var(--cream); font-weight: 600; }
 .nav-right { display: flex; align-items: center; gap: 10px; }
-.icon-btn {
-  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; position: relative;
-  border: 1px solid var(--line); background: var(--glass); backdrop-filter: blur(14px); transition: border-color 0.3s;
-}
-.icon-btn:hover { border-color: var(--accent); }
-.cart i {
-  position: absolute; top: -3px; right: -3px; width: 18px; height: 18px; border-radius: 50%;
-  background: var(--accent); color: #fff; font-size: 10px; font-style: normal; font-weight: 700; display: grid; place-items: center;
-}
 .btn-pill {
   padding: 12px 22px; border-radius: 999px; font-weight: 600; font-size: 14px;
   background: var(--text); color: var(--cream); transition: transform 0.3s, background-color 1.4s, box-shadow 0.3s;
@@ -212,7 +203,6 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 /* ============ responsive ============ */
 @media (max-width: 1100px) {
   .nav-links a { padding: 9px 12px; }
-  .icon-btn:first-child { display: none; }
 }
 
 @media (max-width: 900px) {

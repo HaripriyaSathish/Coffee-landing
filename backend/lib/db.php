@@ -58,6 +58,34 @@ function db(): PDO
     return $pdo;
 }
 
+/**
+ * A short, safe hint on why the database failed (no host names, users or passwords), so a "Demo content"
+ * banner on the live site can be diagnosed from /api/banner.php without opening the server logs.
+ */
+function db_failure_reason(Throwable $e): string
+{
+    $msg = $e->getMessage();
+    if (!db_is_pg() && getenv('RENDER')) {
+        return 'DATABASE_URL is not set on this Render service';
+    }
+    if (str_contains($msg, 'could not find driver')) {
+        return 'PHP database driver missing';
+    }
+    if (preg_match('/password authentication failed|role .* does not exist/i', $msg)) {
+        return 'database login failed: check the user/password in DATABASE_URL';
+    }
+    if (preg_match('/relation .* does not exist|Base table or view not found/i', $msg)) {
+        return 'tables missing: run database.pg.sql (or the migrate tool) on the database';
+    }
+    if (preg_match('/timeout|timed out|could not connect|Connection refused|could not translate host/i', $msg)) {
+        return 'cannot reach the database server (wrong host, or the database is suspended/deleted)';
+    }
+    if ($e instanceof PDOException && $e->getCode() !== null) {
+        return 'database error ' . $e->getCode();
+    }
+    return 'unknown database error';
+}
+
 /** Quote a table / column name for the current database (names always come from code whitelists). */
 function qi(string $name): string
 {
