@@ -30,9 +30,11 @@ function pg_connection(string $url): array
         'dbname=' . ltrim($u['path'] ?? '/postgres', '/'),
         'sslmode=' . ($q['sslmode'] ?? 'require'),
     ];
-    // Neon needs the endpoint id when the client library is too old to send SNI; harmless otherwise
+    // Neon needs the endpoint id when the client library is too old to send SNI. It must match the host's
+    // first label exactly (including "-pooler"), or newer clients that DO send SNI get
+    // "Inconsistent project name inferred from SNI ... and project option".
     if (str_contains($u['host'], '.neon.tech')) {
-        $endpoint = preg_replace('/-pooler$/', '', explode('.', $u['host'])[0]);
+        $endpoint = explode('.', $u['host'])[0];
         $parts[] = "options='endpoint=" . $endpoint . "'";
     }
     return ['pgsql:' . implode(';', $parts), urldecode($u['user'] ?? ''), urldecode($u['pass'] ?? '')];
@@ -80,13 +82,15 @@ function db_failure_reason(Throwable $e): string
     if (preg_match('/timeout|timed out|could not connect|Connection refused|could not translate host/i', $msg)) {
         return 'cannot reach the database server (wrong host, or the database is suspended/deleted)';
     }
-    if (preg_match('/endpoint/i', $msg)) {
+    if (preg_match('/endpoint|Inconsistent project name/i', $msg)) {
         return 'Neon endpoint not found or disabled: copy a fresh connection string from Neon';
     }
     if (preg_match('/SSL|server closed the connection/i', $msg)) {
         return 'secure connection to the database failed: check sslmode in DATABASE_URL';
     }
-    if (preg_match('/invalid|missing "=" |URI/i', $msg) || $e instanceof RuntimeException) {
+    // (PDOException extends RuntimeException, so only a non-PDO RuntimeException comes from pg_connection())
+    if (preg_match('/invalid connection option|missing "="|invalid URI/i', $msg)
+        || ($e instanceof RuntimeException && !$e instanceof PDOException)) {
         return 'DATABASE_URL looks malformed (extra spaces, quotes or a cut-off value?)';
     }
     if ($e instanceof PDOException && $e->getCode() !== null) {
