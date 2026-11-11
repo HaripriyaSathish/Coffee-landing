@@ -80,6 +80,15 @@ function db_failure_reason(Throwable $e): string
     if (preg_match('/timeout|timed out|could not connect|Connection refused|could not translate host/i', $msg)) {
         return 'cannot reach the database server (wrong host, or the database is suspended/deleted)';
     }
+    if (preg_match('/endpoint/i', $msg)) {
+        return 'Neon endpoint not found or disabled: copy a fresh connection string from Neon';
+    }
+    if (preg_match('/SSL|server closed the connection/i', $msg)) {
+        return 'secure connection to the database failed: check sslmode in DATABASE_URL';
+    }
+    if (preg_match('/invalid|missing "=" |URI/i', $msg) || $e instanceof RuntimeException) {
+        return 'DATABASE_URL looks malformed (extra spaces, quotes or a cut-off value?)';
+    }
     if ($e instanceof PDOException && $e->getCode() !== null) {
         return 'database error ' . $e->getCode();
     }
